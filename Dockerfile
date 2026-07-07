@@ -45,11 +45,8 @@ RUN a2enmod rewrite
 # Copy Apache configuration
 COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
-# Copy SQL file
-COPY database.sql /tmp/database.sql
-
-# Create simple startup script
-RUN printf '#!/bin/bash\necho "Starting Shortzz Backend..."\nphp artisan config:clear\nphp artisan config:cache\nphp artisan route:cache\nphp artisan view:cache\necho "Importing database schema..."\nif [ -n "$DB_HOST" ] && [ -n "$DB_DATABASE" ] && [ -n "$DB_USERNAME" ] && [ -n "$DB_PASSWORD" ]; then\n  mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" --ssl-mode=DISABLED "$DB_DATABASE" < /tmp/database.sql 2>&1 && echo "Import OK" || echo "Import skipped (tables may exist)"\nfi\nchown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\nexec apache2-foreground\n' > /start.sh && chmod +x /start.sh
+# Create startup script
+RUN printf '#!/bin/bash\necho "Starting Shortzz Backend..."\nphp artisan config:clear\nphp artisan config:cache\nphp artisan route:cache\nphp artisan view:cache\necho "Importing database schema..."\nif [ -n "$DB_HOST" ] && [ -n "$DB_DATABASE" ] && [ -n "$DB_USERNAME" ] && [ -n "$DB_PASSWORD" ]; then\n  mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" --ssl-mode=DISABLED "$DB_DATABASE" < /var/www/html/database.sql 2>&1 && echo "Import OK" || echo "Import skipped (tables may exist)"\nfi\nchown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\nexec apache2-foreground\n' > /start.sh && chmod +x /start.sh
 
 EXPOSE 80
 
