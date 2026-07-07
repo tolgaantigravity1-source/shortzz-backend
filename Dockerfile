@@ -46,22 +46,11 @@ RUN a2enmod rewrite
 # Copy Apache configuration
 COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
-# Copy SQL file and import script for database import
+# Copy SQL file for database import
 COPY database.sql /tmp/database.sql
-COPY import_sql.php /tmp/import_sql.php
 
-# Create startup script
-RUN echo '#!/bin/bash' > /start.sh && \
-    echo 'echo "Starting Shortzz Backend..."' >> /start.sh && \
-    echo 'php artisan config:clear' >> /start.sh && \
-    echo 'php artisan config:cache' >> /start.sh && \
-    echo 'php artisan route:cache' >> /start.sh && \
-    echo 'php artisan view:cache' >> /start.sh && \
-    echo 'echo "Importing database schema..."' >> /start.sh && \
-    echo 'php /tmp/import_sql.php 2>&1 || true' >> /start.sh && \
-    echo 'chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache' >> /start.sh && \
-    echo 'exec apache2-foreground' >> /start.sh && \
-    chmod +x /start.sh
+# Create startup script with inline PHP import
+RUN printf '#!/bin/bash\necho "Starting Shortzz Backend..."\nphp artisan config:clear\nphp artisan config:cache\nphp artisan route:cache\nphp artisan view:cache\necho "Importing database schema..."\nphp -r "\n\\$host = getenv(\"DB_HOST\");\n\\$port = getenv(\"DB_PORT\");\n\\$dbname = getenv(\"DB_DATABASE\");\n\\$user = getenv(\"DB_USERNAME\");\n\\$pass = getenv(\"DB_PASSWORD\");\nif (!\\$host || !\\$dbname || !\\$user || !\\$pass) { echo \"DB vars not set, skipping\\n\"; exit(0); }\ntry {\n  \\$pdo = new PDO(\"mysql:host=\\$host;port=\\$port;dbname=\\$dbname;charset=utf8mb4\", \\$user, \\$pass, [PDO::MYSQL_ATTR_SSL_CA=>\"/etc/ssl/certs/ca-certificates.crt\", PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT=>false]);\n  echo \"Connected to TiDB!\\n\";\n  \\$tables = \\$pdo->query(\"SHOW TABLES\")->fetchAll();\n  if (count(\\$tables) > 0) { echo \"Tables exist (\".count(\\$tables).\"), skipping.\\n\"; exit(0); }\n  echo \"Importing SQL...\\n\";\n  \\$sql = file_get_contents(\"/tmp/database.sql\");\n  \\$sql = preg_replace(\"/SET SQL_MODE.*?;/\", \"\", \\$sql);\n  \\$sql = preg_replace(\"/START TRANSACTION;/\", \"\", \\$sql);\n  \\$sql = preg_replace(\"/COMMIT;/\", \"\", \\$sql);\n  \\$sql = preg_replace(\"/\\/\\*!40101.*?\\*\\//\", \"\", \\$sql);\n  \\$stmts = array_filter(array_map(\"trim\", explode(\";\", \\$sql)));\n  \\$count = 0;\n  foreach (\\$stmts as \\$s) {\n    if (empty(\\$s) || preg_match(\"/^--/\", \\$s) || preg_match(\"/^\\/\\*/, \\$s)) continue;\n    try { \\$pdo->exec(\\$s); \\$count++; } catch (PDOException \\$e) {}\n  }\n  echo \"Imported \\$count statements.\\n\";\n} catch (PDOException \\$e) { echo \"DB error: \".\\$e->getMessage().\"\\n\"; }\n" 2>&1 || true\nchown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\nexec apache2-foreground\n' > /start.sh && chmod +x /start.sh
 
 EXPOSE 80
 
