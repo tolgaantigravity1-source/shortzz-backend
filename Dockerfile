@@ -46,6 +46,16 @@ RUN a2enmod rewrite
 # Copy Apache configuration
 COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
+# Create startup script
+RUN echo '#!/bin/bash' > /start.sh && \
+    echo 'php artisan config:clear' >> /start.sh && \
+    echo 'php artisan config:cache' >> /start.sh && \
+    echo 'php artisan route:cache' >> /start.sh && \
+    echo 'php artisan view:cache' >> /start.sh && \
+    echo 'chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache' >> /start.sh && \
+    echo 'exec apache2-foreground' >> /start.sh && \
+    chmod +x /start.sh
+
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["/start.sh"]
