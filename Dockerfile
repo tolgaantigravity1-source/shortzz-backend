@@ -47,7 +47,7 @@ RUN a2enmod rewrite
 COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
 # Copy SQL file and import script for database import
-COPY shortzz_database.sql /tmp/shortzz_database.sql
+COPY database.sql /tmp/database.sql
 COPY import_sql.php /tmp/import_sql.php
 
 # Create startup script

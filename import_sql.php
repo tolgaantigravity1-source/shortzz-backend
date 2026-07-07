@@ -38,7 +38,7 @@ try {
     
     echo "No tables found. Importing SQL file...\n";
     
-    $sqlFile = '/tmp/shortzz_database.sql';
+    $sqlFile = '/tmp/database.sql';
     if (!file_exists($sqlFile)) {
         echo "SQL file not found at $sqlFile\n";
         exit(1);
