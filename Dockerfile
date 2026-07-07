@@ -46,12 +46,19 @@ RUN a2enmod rewrite
 # Copy Apache configuration
 COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
+# Copy SQL file and import script for database import
+COPY shortzz_database.sql /tmp/shortzz_database.sql
+COPY import_sql.php /tmp/import_sql.php
+
 # Create startup script
 RUN echo '#!/bin/bash' > /start.sh && \
+    echo 'echo "Starting Shortzz Backend..."' >> /start.sh && \
     echo 'php artisan config:clear' >> /start.sh && \
     echo 'php artisan config:cache' >> /start.sh && \
     echo 'php artisan route:cache' >> /start.sh && \
     echo 'php artisan view:cache' >> /start.sh && \
+    echo 'echo "Importing database schema..."' >> /start.sh && \
+    echo 'php /tmp/import_sql.php 2>&1 || true' >> /start.sh && \
     echo 'chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache' >> /start.sh && \
     echo 'exec apache2-foreground' >> /start.sh && \
     chmod +x /start.sh
